@@ -5,6 +5,13 @@
 
 */
 
+//states in following program
+/*
+1 - Menu, where you select time to count
+2 - Timer, where program counts down
+more can be included later for more uses to the LED Bar
+*/
+
 // include the library code:
 #include <LiquidCrystal.h>
 
@@ -14,6 +21,9 @@
 
 //function prototypes
 void setScreen(int state);
+void updateTimer(int* prevTime);
+void showInputTime();
+void showCountdown(int secs);
 void timerFinish();
 
 // initialize the library by associating any needed LCD interface pin
@@ -30,13 +40,10 @@ int bSelect;
 int bPrevSelect = LOW;
 
 int potVal;
-int timerActive = LOW;         //var for loop, when to run timer side
 uint16_t timeInput = 0;      // timer var to hold the time (only need positive)
-uint16_t totalSeconds;
-unsigned long lastDebounceTime = 0;
-unsigned long debounceDelay = 50;
-uint16_t count;
-uint16_t timeStart = 0;
+int totalSeconds;
+uint16_t stateCount;
+unsigned long timeStart = 0;
 
 
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
@@ -44,9 +51,7 @@ LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 void setup() {
   Serial.begin(9600);
 
-  count = 0;
-  lastDebounceTime = 0;  
-  debounceDelay = 50; 
+  stateCount = 0;
 
   // set up the LCD's number of columns and rows:
   lcd.begin(16, 2);
@@ -54,55 +59,54 @@ void setup() {
   pinMode(pPotentiometer, INPUT);
   pinMode(pSelect, INPUT);
 
-  setScreen(timerActive);
+  setScreen(stateCount);
 }
 
 //timer application
 void loop() {
   //poll the button to see that it works
-  int reading = digitalRead(pSelect);
+  bSelect = digitalRead(pSelect);
 
-  //debouncing the button input (from arduino example)
-  if(reading != bPrevSelect){
-    lastDebounceTime = millis();
-  }
-  if ((millis() - lastDebounceTime) > debounceDelay) { 
-    // check to see if you just pressed the button
-    // (i.e. the input went from LOW to HIGH), and you've waited long enough
-    // since the last press to ignore any noise:
-        
-    // if the button state has changed:
-    if (reading != pSelect) {
-      bSelect = reading;
-
-      // only toggle the LED if the new button state is HIGH
-      if (bSelect == HIGH) {
-        timerActive = !timerActive;
-        setScreen(timerActive);
+  //need to change state and debounce the button input (from arduino example)
+  if(bSelect != bPrevSelect){
+    // only toggle the state if the new button state is HIGH
+    if (bSelect == HIGH) {
+      stateCount++;
+      timeStart = millis();
+      //if it goes over, reset state to 0
+      if(stateCount >= 2){
+        stateCount = 0;
       }
+      setScreen(stateCount);
     }
+    //delay a bit to avoid bouncing
+    delay(50);
+  }
+  bPrevSelect = bSelect;              //change prevSelect to new value
     
-    count++;
-    //if a button click is acknowledged, read current time and set mins/seconds appropriately
-    timeStart = millis();
-    }
-
-  //if in state 1(menu), repeatitly get the current state of the pot and output it to the timer
-  if(timerActive == LOW){
+  //if in state 0(menu), repeatitly get the current state of the pot and output it to the timer
+  if(stateCount == 0){
     potVal = analogRead(pPotentiometer)/5 * 5;
     timeInput = map(potVal, 0, 1023, 0, MAX_TIME);
+    totalSeconds = timeInput*15;
     showInputTime();
-  } else if(timerActive == HIGH){
+  } else if(stateCount == 1){
     updateTimer(&timeStart);
+    if(totalSeconds < 0){            //check to see if timer has finished
+      timerFinish();
+    }
     showCountdown(totalSeconds);
   }
-  //update all vars, timer, and LCD
-  bPrevSelect = bSelect;              //change prevSelect
 }
+
+//
+//FUNCTIONS
+//
+
 //resets screen and sets screen for either state
 void setScreen(int state){
   lcd.clear();
-  if(state == HIGH){
+  if(state == 1){
     lcd.setCursor(0, 0);
     lcd.print("Time Remaining:");
   } else{
@@ -127,7 +131,7 @@ void showCountdown(int secs){
   
 }
 
-void updateTimer(int* prevTime){
+void updateTimer(unsigned long* prevTime){
   if(millis() - *prevTime >= 1000){
     *prevTime = millis();
     totalSeconds--;
@@ -142,5 +146,6 @@ void timerFinish(){
   lcd.setCursor(0,0);
   lcd.print("Timer Complete!");
   delay (5000);     //5 sec delay before reset
+  stateCount = 0;
+  setScreen(stateCount);
 }
-
