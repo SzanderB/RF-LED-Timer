@@ -1,55 +1,16 @@
 /*
-  LiquidCrystal Library - Hello World
-
- Demonstrates the use a 16x2 LCD display.  The LiquidCrystal
- library works with all LCD displays that are compatible with the
- Hitachi HD44780 driver. There are many of them out there, and you
- can usually tell them by the 16-pin interface.
-
- This sketch prints "Hello World!" to the LCD
- and shows the time.
-
-  The circuit:
- * LCD RS pin to digital pin 12
- * LCD Enable pin to digital pin 11
- * LCD D4 pin to digital pin 5
- * LCD D5 pin to digital pin 4
- * LCD D6 pin to digital pin 3
- * LCD D7 pin to digital pin 2
- * LCD R/W pin to ground
- * LCD VSS pin to ground
- * LCD VCC pin to 5V
- * 10K resistor:
- * ends to +5V and ground
- * wiper to LCD VO pin (pin 3)
-
- Library originally added 18 Apr 2008
- by David A. Mellis
- library modified 5 Jul 2009
- by Limor Fried (http://www.ladyada.net)
- example added 9 Jul 2009
- by Tom Igoe
- modified 22 Nov 2010
- by Tom Igoe
- modified 7 Nov 2016
- by Arturo Guadalupi
-
- This example code is in the public domain.
+  Base of project is LiquidCrystal Library - Hello World
 
  http://www.arduino.cc/en/Tutorial/LiquidCrystalHelloWorld
 
 */
 
-
-
-
-
 // include the library code:
 #include <LiquidCrystal.h>
 
 //defines
-#define MAX_TIME 10 * 60 / 15 //max seconds, but split into 15 second intervals
-
+#define MAX_TIME_MINS 10
+#define MAX_TIME MAX_TIME_MINS*60/15  //get max time in 15 second intervals
 
 //function prototypes
 void setScreen(int state);
@@ -63,14 +24,17 @@ const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
 const int pPotentiometer = A0;
 const int pSelect = 8;
 
-int vSelect;
-int vPrevSelect;
-int vPot;
-int active = 1;         //var for loop, when to run timer side
-uint16_t time = 0;      // timer var to hold the time (only need positive)
+
+//globals
+int bSelect;            
+int bPrevSelect = LOW;
+
+int potVal;
+int timerActive = LOW;         //var for loop, when to run timer side
+uint16_t timeInput = 0;      // timer var to hold the time (only need positive)
 uint16_t totalSeconds;
 unsigned long lastDebounceTime = 0;
-uint16_t debounceDelay;
+unsigned long debounceDelay = 50;
 uint16_t count;
 uint16_t timeStart = 0;
 
@@ -90,56 +54,55 @@ void setup() {
   pinMode(pPotentiometer, INPUT);
   pinMode(pSelect, INPUT);
 
-  setScreen(active);
+  setScreen(timerActive);
 }
 
 //timer application
 void loop() {
   //poll the button to see that it works
-  vSelect = digitalRead(pSelect);
+  int reading = digitalRead(pSelect);
 
-  //debouncing the button input
-  if(vSelect != vPrevSelect){
+  //debouncing the button input (from arduino example)
+  if(reading != bPrevSelect){
     lastDebounceTime = millis();
-    // every time the button state changes, get the time of that change FROM: https://digilent.com/reference/learn/microprocessor/tutorials/debouncing-via-software/start#:~:text=Software%20debouncing%20is%20accomplished%20by,whether%20consecutive%20samples%20are%20received.
-    if (((millis() - lastDebounceTime) > debounceDelay) && (lastDebounceTime != 0)) { 
-    /*
-    *if the difference between the last time the button changed is greater
-          *than the delay period, it is safe to say
-          *the button is in the final steady state, so set the LED state to
-          *button state.
-    */
-      //if its currently in countdown state, reset it. If not, move to countdown state
-    if(active == 2){
-      active = 1;
-    } else {
-      active = 2;
-      totalSeconds = time * 15;
+  }
+  if ((millis() - lastDebounceTime) > debounceDelay) { 
+    // check to see if you just pressed the button
+    // (i.e. the input went from LOW to HIGH), and you've waited long enough
+    // since the last press to ignore any noise:
+        
+    // if the button state has changed:
+    if (reading != pSelect) {
+      bSelect = reading;
+
+      // only toggle the LED if the new button state is HIGH
+      if (bSelect == HIGH) {
+        timerActive = !timerActive;
+        setScreen(timerActive);
+      }
     }
-    setScreen(active);
+    
     count++;
     //if a button click is acknowledged, read current time and set mins/seconds appropriately
     timeStart = millis();
     }
-  }
-
 
   //if in state 1(menu), repeatitly get the current state of the pot and output it to the timer
-  if(active == 1){
-    vPot = analogRead(pPotentiometer)/5 * 5;
-    time = map(vPot, 0, 1023, 0, MAX_TIME);
+  if(timerActive == LOW){
+    potVal = analogRead(pPotentiometer)/5 * 5;
+    timeInput = map(potVal, 0, 1023, 0, MAX_TIME);
     showInputTime();
-  } else if(active == 2){
+  } else if(timerActive == HIGH){
     updateTimer(&timeStart);
     showCountdown(totalSeconds);
   }
   //update all vars, timer, and LCD
-  vPrevSelect = vSelect;              //change prevSelect
+  bPrevSelect = bSelect;              //change prevSelect
 }
 //resets screen and sets screen for either state
 void setScreen(int state){
   lcd.clear();
-  if(state == 1){
+  if(state == HIGH){
     lcd.setCursor(0, 0);
     lcd.print("Time Remaining:");
   } else{
@@ -150,7 +113,7 @@ void setScreen(int state){
 //updates the time being input to the screen
 void showInputTime(){
   char curTime[15];
-  sprintf(curTime, "%d mins %.2d secs", time/4,(time%4)*15);
+  sprintf(curTime, "%d mins %.2d secs", timeInput/4,(timeInput%4)*15);
   lcd.setCursor(0, 1);
   lcd.print(curTime);
 }
