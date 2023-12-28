@@ -3,10 +3,9 @@
 
  http://www.arduino.cc/en/Tutorial/LiquidCrystalHelloWorld
 
-*/
 
 //states in following program
-/*
+
 1 - Menu, where you select time to count
 2 - Timer, where program counts down
 more can be included later for more uses to the LED Bar
@@ -14,10 +13,13 @@ more can be included later for more uses to the LED Bar
 
 // include the library code:
 #include <LiquidCrystal.h>
+#include <FastLED.h>
 
 //defines
 #define MAX_TIME_MINS 10
 #define MAX_TIME MAX_TIME_MINS*60/15  //get max time in 15 second intervals
+#define NUM_LEDS 60
+#define DATA_PIN 9
 
 //function prototypes
 void setScreen(int state);
@@ -25,6 +27,7 @@ void updateTimer(int* prevTime);
 void showInputTime();
 void showCountdown(int secs);
 void timerFinish();
+void updateLEDStrip(unsigned long* time);
 
 // initialize the library by associating any needed LCD interface pin
 // with the arduino pin number it is connected to
@@ -33,6 +36,7 @@ const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
 //const for potPin and select button
 const int pPotentiometer = A0;
 const int pSelect = 8;
+
 
 
 //globals
@@ -44,14 +48,20 @@ uint16_t timeInput = 0;      // timer var to hold the time (only need positive)
 int totalSeconds;
 uint16_t stateCount;
 unsigned long timeStart = 0;
+unsigned long ledTimer = 0;
+uint16_t ledsRemaining;
+uint16_t mappedTimer;
 
 
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+CRGB leds[NUM_LEDS];
 
 void setup() {
-  Serial.begin(9600);
+
+  FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);  // GRB ordering is assumed
 
   stateCount = 0;
+  ledsRemaining = NUM_LEDS;
 
   // set up the LCD's number of columns and rows:
   lcd.begin(16, 2);
@@ -69,10 +79,12 @@ void loop() {
 
   //need to change state and debounce the button input (from arduino example)
   if(bSelect != bPrevSelect){
-    // only toggle the state if the new button state is HIGH
-    if (bSelect == HIGH) {
+    
+    if (bSelect == HIGH) {                        // only toggle the state if the new button state is HIGH
       stateCount++;
       timeStart = millis();
+      ledTimer = millis();
+      mappedTimer = totalSeconds / NUM_LEDS * 1000;   // find out how often you need to turn off an LED
       //if it goes over, reset state to 0
       if(stateCount >= 2){
         stateCount = 0;
@@ -121,7 +133,7 @@ void showInputTime(){
   lcd.setCursor(0, 1);
   lcd.print(curTime);
 }
-//
+//updates the LCD to display the right time
 void showCountdown(int secs){
   char timeRemaining[6];
 
@@ -131,6 +143,7 @@ void showCountdown(int secs){
   
 }
 
+//updates the timer every 1000 ms
 void updateTimer(unsigned long* prevTime){
   if(millis() - *prevTime >= 1000){
     *prevTime = millis();
@@ -148,4 +161,20 @@ void timerFinish(){
   delay (5000);     //5 sec delay before reset
   stateCount = 0;
   setScreen(stateCount);
+}
+
+void updateLEDStrip(unsigned long* time){
+  if(millis() - *time >= mappedTimer){
+    *time = millis();
+    ledsRemaining--;
+  }
+}
+
+void displayLEDStrip(){
+  int colorLED = map(ledsRemaining, 0, NUM_LEDS, 0, 96);
+  for(int i = 0; i < ledsRemaining; i++) 
+  {
+    leds[i] = CHSV (colorLED,255,192);
+  }
+  FastLED.show();
 }
