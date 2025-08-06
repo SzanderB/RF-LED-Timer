@@ -1,6 +1,6 @@
 # Personal Project 1: LED Timer Bar
 
-Video Link:
+Video Link: https://youtube.com/shorts/uT_QXEIdz4I
 
 ## Description
 Using an ardiuno uno, a buzzer, IR reciever, and neopixel LEDs, I was able to make an accurate and responsive timer bar. Using a random TV remote, you can program the commands for different countdown times and have the arduino count down for you.
