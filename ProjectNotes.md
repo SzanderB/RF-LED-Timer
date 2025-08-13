@@ -1,6 +1,3 @@
-# Personal Project 1: LED Timer Bar
-
-Video Link: https://youtube.com/shorts/uT_QXEIdz4I
 
 ## Description
 Using an ardiuno uno, a buzzer, IR reciever, and neopixel LEDs, I was able to make an accurate and responsive timer bar. Using a random TV remote, you can program the commands for different countdown times and have the arduino count down for you.
@@ -22,5 +19,3 @@ However, the LED bar wasn't helpful if my back is to it. So, in the next renditi
 ## Issues
 Arduinos are great because there is a lot of prewritten code for them (FastLED and IRRemote). However, they are only 8-bit uCs and only have 1 core. The FastLED command .show(), which displays the LEDs, turns off interrupts, which IRRemote relies on to get data. So, if I wanted to refresh my LEDs at 10Hz, then my IRRemote is very unlikely to receive a whole transmission without getting interrupted. Therefore, if I had 2 cores, like in a raspberry pi pico, I could do both without having to worry about one interrupting the other. My workaround for this is refresh LEDs at 4Hz. Its noticable, but doesn't impact functionality.
 
-## How to use
-I've attatched the schematics as well as a BOM to follow along. Create the schematic and make sure to check connections along the way (saves time debugging later). Download the code and try it out!
